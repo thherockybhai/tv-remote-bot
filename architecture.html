@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Android TV Remote Bot — Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:       #0b0e14;
+    --surface:  #12161f;
+    --surface2: #1a1f2e;
+    --border:   #232840;
+    --accent:   #4f9eff;
+    --accent2:  #7c5cfc;
+    --green:    #3dffa0;
+    --orange:   #ff9640;
+    --red:      #ff4f6a;
+    --text:     #e2e8f8;
+    --muted:    #6b7594;
+    --mono:     'Space Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 56px 40px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(160deg, #0d1525 0%, var(--bg) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 50%, rgba(79,158,255,.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 560px;
+  }
+  .badges {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .badge-blue  { color: var(--accent);  border-color: rgba(79,158,255,.35); background: rgba(79,158,255,.08); }
+  .badge-purple{ color: var(--accent2); border-color: rgba(124,92,252,.35); background: rgba(124,92,252,.08); }
+  .badge-green { color: var(--green);   border-color: rgba(61,255,160,.35); background: rgba(61,255,160,.08); }
+
+  /* ── Layout ── */
+  main { max-width: 1100px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  section { margin-bottom: 64px; }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #c8d4f0;
+  }
+
+  p { color: #8892b0; margin-bottom: 12px; }
+
+  /* ── Architecture Diagram ── */
+  .arch {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr 40px 1fr 40px 1fr;
+    align-items: center;
+    gap: 0;
+    padding: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+
+  .node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 14px;
+    text-align: center;
+    position: relative;
+    transition: border-color .2s;
+  }
+  .node:hover { border-color: var(--accent); }
+  .node-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+  .node-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .node-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .node-blue   { border-color: rgba(79,158,255,.4);  }
+  .node-purple { border-color: rgba(124,92,252,.4);  }
+  .node-green  { border-color: rgba(61,255,160,.4);  }
+  .node-orange { border-color: rgba(255,150,64,.4);  }
+
+  .arrow {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    color: var(--muted);
+  }
+  .arrow-line {
+    width: 100%; height: 2px;
+    background: linear-gradient(90deg, var(--border), var(--accent), var(--border));
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '▶';
+    position: absolute; right: -6px; top: -7px;
+    font-size: 10px; color: var(--accent);
+  }
+  .arrow-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ── Flow Steps ── */
+  .flow {
+    display: flex; flex-direction: column; gap: 0;
+    border-left: 2px solid var(--border);
+    padding-left: 0;
+    margin-left: 16px;
+  }
+  .flow-step {
+    display: flex; gap: 20px;
+    padding: 0 0 28px 28px;
+    position: relative;
+  }
+  .flow-step::before {
+    content: attr(data-n);
+    position: absolute; left: -13px; top: 0;
+    width: 24px; height: 24px;
+    background: var(--surface2);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+    text-align: center;
+    padding-top: 1px;
+  }
+  .flow-content { flex: 1; }
+  .flow-content h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .flow-content p { margin: 0; font-size: 13px; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #080b11;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    color: #a8b8d8;
+    position: relative;
+  }
+  pre .tag      { color: var(--accent);  }
+  pre .str      { color: var(--green);   }
+  pre .kw       { color: var(--accent2); }
+  pre .comment  { color: var(--muted);   }
+  pre .num      { color: var(--orange);  }
+  .code-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* ── Cards grid ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color .2s, transform .15s;
+  }
+  .card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+  .card-icon { font-size: 22px; margin-bottom: 10px; }
+  .card h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .card p  { font-size: 13px; color: var(--muted); margin: 0; }
+
+  /* ── Command table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(35,40,64,.5);
+    color: #8892b0;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  .cmd { font-family: var(--mono); color: var(--accent); }
+  .keys { font-family: var(--mono); color: var(--orange); font-size: 11px; }
+
+  /* ── Security / deploy ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .checklist li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13px; color: #8892b0;
+  }
+  .checklist li::before {
+    content: '✓';
+    font-family: var(--mono);
+    color: var(--green);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 700px) {
+    .arch { grid-template-columns: 1fr; }
+    .arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-tag">System Architecture · v1.0</div>
+  <h1>Android TV<br>Remote Bot</h1>
+  <p class="subtitle">
+    Control any Android TV from anywhere in the world using a Telegram bot
+    powered by an LLM agent — no extra hardware required.
+  </p>
+  <div class="badges">
+    <span class="badge badge-blue">FastAPI</span>
+    <span class="badge badge-purple">Claude Haiku</span>
+    <span class="badge badge-green">WebSocket</span>
+    <span class="badge badge-blue">Telegram Bot</span>
+    <span class="badge badge-purple">Kotlin / Android</span>
+    <span class="badge badge-green">Zero Hardware</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Architecture Diagram ── -->
+  <section>
+    <h2>Architecture Overview</h2>
+    <div class="arch">
+
+      <div class="node node-blue">
+        <span class="node-icon">📱</span>
+        <div class="node-label">User</div>
+        <div class="node-sub">Telegram app<br>any device</div>
+      </div>
+
+      <div class="arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-label">HTTPS<br>Webhook</div>
+      </div>
+
+      <div class="node node-purple">
+        <span class="node-icon">🤖</span>
+        <div class="node-label">Backend</div>
+        <div class="node-sub">FastAPI server<br>+ LLM Agent</div>
+      </div>
+
+      <div class="arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-label">WSS<br>Persistent</div>
+      </div>
+
+      <div class="node node-green">
+        <span class="node-icon">📺</span>
+        <div class="node-label">Android TV</div>
+        <div class="node-sub">Client agent<br>Kotlin service</div>
+      </div>
+
+      <div class="arrow">
+        <div class="arrow-line"></div>
+        <div class="arrow-label">KeyEvent<br>Injection</div>
+      </div>
+
+      <div class="node node-orange">
+        <span class="node-icon">🎛️</span>
+        <div class="node-label">TV System</div>
+        <div class="node-sub">Channel / Volume<br>Power control</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Command Flow ── -->
+  <section>
+    <h2>Command Flow</h2>
+    <div class="flow">
+      <div class="flow-step" data-n="1">
+        <div class="flow-content">
+          <h4>User sends message in Telegram</h4>
+          <p>"switch to channel 105"</p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="2">
+        <div class="flow-content">
+          <h4>Telegram forwards to backend via webhook</h4>
+          <p>POST /webhook/telegram — JSON update payload</p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="3">
+        <div class="flow-content">
+          <h4>Access control check</h4>
+          <p>User ID verified against ALLOWED_TELEGRAM_IDS whitelist</p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="4">
+        <div class="flow-content">
+          <h4>LLM Agent parses natural language → JSON</h4>
+          <p>Claude Haiku returns <code style="font-family:monospace;color:#4f9eff">{"command":"change_channel","value":105}</code></p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="5">
+        <div class="flow-content">
+          <h4>Backend broadcasts JSON over WebSocket</h4>
+          <p>Sent to all authenticated TV clients (or a specific device_id)</p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="6">
+        <div class="flow-content">
+          <h4>Android TV client receives command</h4>
+          <p>Kotlin service running as persistent foreground process</p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="7">
+        <div class="flow-content">
+          <h4>KeyEvent injection via Accessibility Service</h4>
+          <p>KEYCODE_1 → KEYCODE_0 → KEYCODE_5 (200ms apart)</p>
+        </div>
+      </div>
+      <div class="flow-step" data-n="8" style="padding-bottom:0">
+        <div class="flow-content">
+          <h4>Telegram bot sends confirmation to user</h4>
+          <p>"📺 Switching to channel 105"</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Supported Commands ── -->
+  <section>
+    <h2>Supported Commands</h2>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>JSON Command</th>
+            <th>Natural Language Examples</th>
+            <th>KeyEvents Fired</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="cmd">change_channel</td>
+            <td>"switch to 105", "go to channel 205", "channel 7"</td>
+            <td class="keys">KEYCODE_1, KEYCODE_0, KEYCODE_5</td>
+          </tr>
+          <tr>
+            <td class="cmd">channel_up</td>
+            <td>"next channel", "channel up", "flip up"</td>
+            <td class="keys">KEYCODE_CHANNEL_UP</td>
+          </tr>
+          <tr>
+            <td class="cmd">channel_down</td>
+            <td>"previous channel", "channel down", "go back"</td>
+            <td class="keys">KEYCODE_CHANNEL_DOWN</td>
+          </tr>
+          <tr>
+            <td class="cmd">volume_up</td>
+            <td>"louder", "increase volume", "turn it up"</td>
+            <td class="keys">KEYCODE_VOLUME_UP</td>
+          </tr>
+          <tr>
+            <td class="cmd">volume_down</td>
+            <td>"quieter", "lower the volume", "turn it down"</td>
+            <td class="keys">KEYCODE_VOLUME_DOWN</td>
+          </tr>
+          <tr>
+            <td class="cmd">mute</td>
+            <td>"mute", "silence", "no sound"</td>
+            <td class="keys">KEYCODE_VOLUME_MUTE</td>
+          </tr>
+          <tr>
+            <td class="cmd">power</td>
+            <td>"turn off", "turn on", "power toggle"</td>
+            <td class="keys">KEYCODE_POWER</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Code Samples ── -->
+  <section>
+    <h2>Key Code Samples</h2>
+
+    <h3 style="margin-bottom:8px">1 · LLM System Prompt (structured extraction)</h3>
+    <p>The prompt constrains the model to return only a JSON object:</p>
+    <div class="code-label">system_prompt.txt</div>
+    <pre><span class="comment"># Sent to Claude Haiku as the system prompt</span>
+You are a TV remote control assistant.
+Parse the user message and return ONLY valid JSON — no markdown.
+
+<span class="kw">Supported shapes:</span>
+  change_channel  → {<span class="str">"command"</span>: <span class="str">"change_channel"</span>, <span class="str">"value"</span>: &lt;int&gt;}
+  channel_up      → {<span class="str">"command"</span>: <span class="str">"channel_up"</span>}
+  volume_up       → {<span class="str">"command"</span>: <span class="str">"volume_up"</span>}
+  mute            → {<span class="str">"command"</span>: <span class="str">"mute"</span>}
+  power           → {<span class="str">"command"</span>: <span class="str">"power"</span>}
+  unknown         → {<span class="str">"command"</span>: <span class="str">"unknown"</span>, <span class="str">"message"</span>: <span class="str">"..."</span>}</pre>
+
+    <br>
+    <h3 style="margin-bottom:8px">2 · WebSocket auth handshake</h3>
+    <p>The TV client sends a shared secret immediately after connecting:</p>
+    <div class="code-label">sequence</div>
+    <pre><span class="comment"># Android TV → Server</span>
+{<span class="str">"auth"</span>: <span class="str">"change-me-use-a-long-random-string"</span>}
+
+<span class="comment"># Server → Android TV (success)</span>
+{<span class="str">"status"</span>: <span class="str">"authenticated"</span>}
+
+<span class="comment"># Server → Android TV (failure → connection closed 1008)</span>
+{<span class="str">"error"</span>: <span class="str">"unauthorized"</span>}</pre>
+
+    <br>
+    <h3 style="margin-bottom:8px">3 · Command JSON examples</h3>
+    <div class="code-label">commands.json</div>
+    <pre>{<span class="str">"command"</span>: <span class="str">"change_channel"</span>, <span class="str">"value"</span>: <span class="num">105</span>}
+{<span class="str">"command"</span>: <span class="str">"volume_up"</span>}
+{<span class="str">"command"</span>: <span class="str">"mute"</span>}
+{<span class="str">"command"</span>: <span class="str">"power"</span>}</pre>
+
+    <br>
+    <h3 style="margin-bottom:8px">4 · Kotlin KeyEvent injection (core snippet)</h3>
+    <div class="code-label">TvRemoteAgent.kt</div>
+    <pre><span class="kw">fun</span> <span class="tag">injectKey</span>(keyCode: Int) {
+    val down = KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
+    val up   = KeyEvent(KeyEvent.ACTION_UP,   keyCode)
+    val im   = InputManager.getInstance()
+    im.injectInputEvent(down, <span class="num">0</span>)
+    im.injectInputEvent(up,   <span class="num">0</span>)
+}
+
+<span class="comment">// Channel 105 → three sequential key presses</span>
+<span class="str">"105"</span>.forEach { digit ->
+    <span class="tag">injectKey</span>(digitToKeyCode(digit))
+    Thread.sleep(<span class="num">200</span>)
+}</pre>
+  </section>
+
+  <!-- ── Security ── -->
+  <section>
+    <h2>Security</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <h3>Telegram User Whitelist</h3>
+        <p>Set <code style="font-family:monospace;color:#4f9eff">ALLOWED_TELEGRAM_IDS</code> to a comma-separated list of numeric Telegram user IDs. All other users receive an "unauthorized" reply.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔑</div>
+        <h3>WebSocket Shared Secret</h3>
+        <p>The TV client must present <code style="font-family:monospace;color:#4f9eff">TV_CLIENT_SECRET</code> in the first WebSocket message. A wrong or missing secret closes the connection immediately.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔒</div>
+        <h3>TLS Everywhere</h3>
+        <p>Deploy behind NGINX or a reverse proxy (Caddy is easiest) with a valid TLS certificate. Use <code style="font-family:monospace;color:#4f9eff">wss://</code> WebSocket URLs, never plain <code style="font-family:monospace;color:#ff4f6a">ws://</code>.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌐</div>
+        <h3>Webhook Secret Token</h3>
+        <p>Configure Telegram's <code style="font-family:monospace;color:#4f9eff">secret_token</code> when calling <code style="font-family:monospace;color:#4f9eff">setWebhook</code> and verify the <code style="font-family:monospace;color:#4f9eff">X-Telegram-Bot-Api-Secret-Token</code> header in every request.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">♻️</div>
+        <h3>Auto-Reconnect</h3>
+        <p>The Android TV client retries the WebSocket connection after 5 seconds on any failure and restarts automatically on device reboot via <code style="font-family:monospace;color:#4f9eff">BOOT_COMPLETED</code> broadcast.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <h3>Rate Limiting (optional)</h3>
+        <p>Add per-user rate limiting in the Telegram webhook handler (e.g. max 10 commands/minute) to prevent spam or accidental loops.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Deployment ── -->
+  <section>
+    <h2>Deployment Guide</h2>
+    <ul class="checklist">
+      <li><strong>Server:</strong> Deploy on any $5/month VPS (Fly.io, Railway, Render, DigitalOcean) — the backend is stateless except for active WebSocket connections. Use the provided Dockerfile.</li>
+      <li><strong>HTTPS/WSS:</strong> Use Caddy (<code style="font-family:monospace;color:#4f9eff">caddy reverse-proxy --from yourdomain.com --to localhost:8000</code>) for automatic TLS — it handles Let's Encrypt for you.</li>
+      <li><strong>Telegram Webhook:</strong> Run <code style="font-family:monospace;color:#4f9eff">python register_webhook.py</code> once after deployment to point Telegram at your server.</li>
+      <li><strong>Android TV App:</strong> Sideload the APK via ADB or a file manager. Enable the Accessibility Service once in Settings → Accessibility.</li>
+      <li><strong>Auto-start:</strong> The <code style="font-family:monospace;color:#4f9eff">BootReceiver</code> starts the foreground service automatically after every reboot — no manual action needed.</li>
+      <li><strong>Environment variables:</strong> Copy <code style="font-family:monospace;color:#4f9eff">.env.example</code> → <code style="font-family:monospace;color:#4f9eff">.env</code>, fill in the four values, and pass them to Docker via <code style="font-family:monospace;color:#4f9eff">--env-file .env</code>.</li>
+      <li><strong>Multiple TVs:</strong> Each Android TV connects with a unique <code style="font-family:monospace;color:#4f9eff">device_id</code> in the WebSocket URL. The <code style="font-family:monospace;color:#4f9eff">/devices</code> bot command lists all currently connected TVs.</li>
+    </ul>
+  </section>
+
+  <!-- ── File Map ── -->
+  <section>
+    <h2>Project File Map</h2>
+    <pre style="font-size:13px"><span class="tag">tv-remote-bot/</span>
+├── <span class="tag">server/</span>
+│   ├── <span class="str">main.py</span>               <span class="comment"># FastAPI app — Telegram webhook + WebSocket hub + LLM</span>
+│   ├── <span class="str">requirements.txt</span>      <span class="comment"># fastapi, uvicorn, httpx</span>
+│   ├── <span class="str">Dockerfile</span>            <span class="comment"># Python 3.12 slim container</span>
+│   ├── <span class="str">register_webhook.py</span>   <span class="comment"># One-shot Telegram webhook registration</span>
+│   └── <span class="str">.env.example</span>          <span class="comment"># Environment variable template</span>
+├── <span class="tag">android-client/</span>
+│   └── <span class="str">TvRemoteAgent.kt</span>      <span class="comment"># Full Kotlin client: Service + AccessibilityService + KeyEvents</span>
+└── <span class="tag">docs/</span>
+    └── <span class="str">architecture.html</span>     <span class="comment"># This file</span></pre>
+  </section>
+
+</main>
+</body>
+</html>
