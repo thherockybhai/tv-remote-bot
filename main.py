@@ -102,37 +102,25 @@ Rules:
 """
 
 async def parse_command(user_message: str) -> dict:
-
     async with httpx.AsyncClient(timeout=15) as client:
-
         resp = await client.post(
-
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}",
-
-            headers={"Content-Type": "application/json"},
-
-            json={
-
-                "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n\nUser: " + user_message}]}]
-
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": GEMINI_API_KEY,
             },
-
+            json={
+                "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n\nUser: " + user_message}]}]
+            },
         )
-
         resp.raise_for_status()
-
         raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-
         if raw.startswith("```"):
-
             raw = raw.split("```")[1]
-
             if raw.startswith("json"):
-
                 raw = raw[4:]
-
         return json.loads(raw)
- 
+      
 # ─── Telegram Helpers ─────────────────────────────────────────────────────────
 
 async def telegram_send(chat_id: int, text: str):
