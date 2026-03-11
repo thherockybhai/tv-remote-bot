@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 TELEGRAM_BOT_TOKEN   = os.environ["TELEGRAM_BOT_TOKEN"]      # required
-ANTHROPIC_API_KEY    = os.environ["GEMINI_API_KEY"]        # required
+GEMINI_API_KEY    = os.environ["GEMINI_API_KEY"]        # required
 TV_CLIENT_SECRET     = os.environ["TV_CLIENT_SECRET"]         # shared secret between server ↔ TV
 ALLOWED_TELEGRAM_IDS = set(                                   # comma-separated user IDs
     int(x) for x in os.environ.get("ALLOWED_TELEGRAM_IDS", "").split(",") if x
