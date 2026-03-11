@@ -111,7 +111,7 @@ async def parse_command(user_message: str) -> dict:
                 "Authorization": f"Bearer {GROQ_API_KEY}",
             },
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.1-8b-instant",
                 "max_tokens": 128,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
