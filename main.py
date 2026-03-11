@@ -4,7 +4,7 @@ Android TV Remote Control — Backend Server
 FastAPI app that:
   1. Accepts Telegram webhook updates
   2. Runs an LLM agent to parse natural-language commands
-  3. Maintains a WebSocket hub for connected Android TV clients
+  3. Maintains a WebSocket hub for connected Android TVV clients
   4. Forwards structured JSON commands to the correct TV client
 """
 
