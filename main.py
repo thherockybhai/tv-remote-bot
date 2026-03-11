@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 TELEGRAM_BOT_TOKEN   = os.environ["TELEGRAM_BOT_TOKEN"]      # required
-GEMINI_API_KEY    = os.environ["GEMINI_API_KEY"]        # required
+#GEMINI_API_KEY    = os.environ["GEMINI_API_KEY"]        # required
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 TV_CLIENT_SECRET     = os.environ["TV_CLIENT_SECRET"]         # shared secret between server ↔ TV
 ALLOWED_TELEGRAM_IDS = set(                                   # comma-separated user IDs
     int(x) for x in os.environ.get("ALLOWED_TELEGRAM_IDS", "").split(",") if x
@@ -104,17 +105,22 @@ Rules:
 async def parse_command(user_message: str) -> dict:
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            "https://api.groq.com/openai/v1/chat/completions",
             headers={
                 "Content-Type": "application/json",
-                "x-goog-api-key": GEMINI_API_KEY,
+                "Authorization": f"Bearer {GROQ_API_KEY}",
             },
             json={
-                "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n\nUser: " + user_message}]}]
+                "model": "llama3-8b-8192",
+                "max_tokens": 128,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message}
+                ],
             },
         )
         resp.raise_for_status()
-        raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
